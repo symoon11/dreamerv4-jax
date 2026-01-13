@@ -1,15 +1,21 @@
 [project]
-name = "dreamerv4-flax"
+name = "dreamerv4-jax"
 version = "0.1.0"
-description = "Flax implementation of DreamerV4"
+description = "Add your description here"
 readme = "README.md"
+authors = [
+    { name = "symoon11", email = "symoon11@snu.ac.kr" }
+]
 requires-python = ">=3.13"
 dependencies = [
     "flax>=0.12.2",
-    "numpy>=2.4.1",
+    "sglang-jax>=0.0.2",
     "tokamax>=0.0.9",
 ]
 
-[tool.ruff]
-line-length = 120
+[project.scripts]
+dreamerv4-jax = "dreamerv4_jax:main"
 
+[build-system]
+requires = ["uv_build>=0.9.21,<0.10.0"]
+build-backend = "uv_build"
