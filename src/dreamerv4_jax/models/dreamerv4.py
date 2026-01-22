@@ -5,14 +5,11 @@ TODO:
 - Implement sharding
 """
 
-import enum
-import sys
 import time
-
 import jax
 import jax.numpy as jnp
 import tokamax
-from absl import app, flags, logging
+from absl import app
 from flax import nnx
 
 
@@ -206,19 +203,28 @@ def main(_):
         dtype=jnp.bfloat16,
         rngs=rngs,
     )
-    hidden_states = jnp.ones((8, 128, 1024), dtype=jnp.bfloat16)
+
+    hidden_states = rngs.normal((8, 128, 1024), dtype=jnp.bfloat16)
+    autotune_result = tokamax.autotune(model, hidden_states)
 
     @nnx.jit
-    def forward(hidden_states: jax.Array) -> jax.Array:
-        return model(hidden_states)
+    def eval_step(model: nnx.Module, rngs: nnx.Rngs) -> jax.Array:
+        @nnx.scan(length=100, in_axes=nnx.Carry, out_axes=nnx.Carry)
+        def denoise(hidden_states: jax.Array) -> jax.Array:
+            hidden_states = model(hidden_states)
+            return hidden_states
 
-    autotune_result = tokamax.autotune(forward.lower(hidden_states).lowered)
+        hidden_states = rngs.normal((8, 128, 1024), dtype=jnp.bfloat16)
+        hidden_states = denoise(hidden_states)
+        return hidden_states
 
     with autotune_result:
-        start_time = time.time()
-        forward(hidden_states).block_until_ready()
-        end_time = time.time()
-        print(f"Time taken: {end_time - start_time} seconds")
+        for _ in range(100):
+            start_time = time.time()
+            eval_step(model, rngs).block_until_ready()
+            end_time = time.time()
+            elapsed_time = (end_time - start_time) * 1000
+            print(f"Time taken: {elapsed_time} ms")
 
 
 if __name__ == "__main__":
